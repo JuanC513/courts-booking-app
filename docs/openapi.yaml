@@ -29,6 +29,10 @@ info:
     | `400 Bad Request` | El cuerpo o los parámetros no son válidos, o se incumple una regla de negocio. |
     | `404 Not Found` | El recurso indicado en la URL no existe. |
     | `409 Conflict` | La operación choca con el estado actual de los datos (email repetido, horario ocupado, transición de estado no permitida…). |
+    | `413 Content Too Large` | El cuerpo de la petición supera el tamaño máximo (100 KB). Puede ocurrir en cualquier operación con cuerpo. |
+    | `500 Internal Server Error` | Error inesperado del servidor. No incluye detalles internos. |
+
+    Los códigos `413` y `500` no se repiten en cada operación: aplican a toda la API.
 
 servers:
   - url: http://localhost:3000
