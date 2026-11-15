@@ -15,7 +15,7 @@ El acceso a datos es con **SQL explícito, sin ORM**, y todo se ejecuta localmen
 |---|---|
 | Base de datos PostgreSQL (esquema, migraciones y datos de ejemplo) | ✅ Lista |
 | Contrato de la API (`docs/openapi.yaml`) | ✅ Listo |
-| Backend Node.js (`backend-node/`) | ⏳ Pendiente |
+| Backend Node.js (`backend-node/`) | 🚧 En progreso: servidor y conexión a PostgreSQL |
 | Base de datos SQL Server | ⏳ Pendiente |
 | Backend .NET (`backend-dotnet/`) | ⏳ Pendiente |
 
@@ -23,6 +23,9 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 
 ## Tecnologías
 
+- **Node.js 22 + TypeScript**: lenguaje y entorno del backend Node.
+- **Express 5**: framework web del backend Node.
+- **pg**: driver de PostgreSQL para Node (consultas SQL parametrizadas, sin ORM).
 - **PostgreSQL 17**: base de datos del backend Node.
 - **Flyway 11**: herramienta de migraciones con archivos SQL puros.
 - **Docker Compose**: levanta la base de datos y aplica las migraciones con un solo comando.
@@ -31,6 +34,16 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 
 ```
 .
+├── backend-node/
+│   ├── src/
+│   │   ├── app.ts                 # Configura Express (middlewares y rutas)
+│   │   ├── server.ts              # Arranca el servidor
+│   │   ├── config.ts              # Lee y valida las variables de entorno
+│   │   └── db/
+│   │       └── pool.ts            # Pool de conexiones a PostgreSQL
+│   ├── .env.example
+│   ├── package.json
+│   └── tsconfig.json
 ├── docs/
 │   └── openapi.yaml               # Contrato de la API (OpenAPI 3.1)
 ├── db/
@@ -50,6 +63,7 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 ## Requisitos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (incluye Docker Compose).
+- [Node.js 22](https://nodejs.org/) o superior, para ejecutar el backend Node en local.
 
 ## Cómo ejecutarlo
 
@@ -79,6 +93,39 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
    | Usuario / contraseña | `POSTGRES_USER` / `POSTGRES_PASSWORD` |
 
    > Se usa el puerto `5433` en el host para no chocar con un PostgreSQL instalado localmente en el `5432`.
+
+### Ejecutar el backend Node en local
+
+Por ahora la API se ejecuta en tu máquina, fuera de Docker, y se conecta a la base de datos que levanta Compose.
+
+1. Con la base de datos corriendo (paso anterior), entra a la carpeta del backend e instala las dependencias:
+
+   ```bash
+   cd backend-node
+   npm install
+   ```
+
+2. Copia la plantilla de variables de entorno y usa los mismos datos de conexión que en el `.env` de la raíz:
+
+   ```bash
+   cp .env.example .env
+   ```
+
+   > `DB_HOST=localhost` y `DB_PORT=5433` porque la API corre fuera de Docker y se conecta al puerto publicado en el host.
+
+3. Arranca en modo desarrollo (se reinicia al guardar cambios):
+
+   ```bash
+   npm run dev
+   ```
+
+4. Comprueba que responde: `http://localhost:3000/health` debe devolver `{"status":"ok","database":"ok"}`. Si la base de datos no está disponible, devuelve `503`.
+
+| Script | Qué hace |
+|---|---|
+| `npm run dev` | Ejecuta TypeScript directamente con `tsx`, con recarga automática y el `.env` cargado. |
+| `npm run build` | Compila a JavaScript en `dist/`. |
+| `npm start` | Ejecuta la versión compilada (las variables de entorno deben venir del entorno). |
 
 ### Comandos útiles
 
@@ -155,6 +202,9 @@ Decisiones principales:
 
 ## Próximos pasos
 
-- Backend Node.js con Express, TypeScript y el driver `pg`.
+- Endpoints del backend Node: usuarios, canchas y reservas, con capas de rutas, controladores, servicios y repositorios.
+- Swagger UI sirviendo `docs/openapi.yaml`.
+- Manejo de errores centralizado con Problem Details.
+- Backend Node dentro de Docker Compose (perfil `node`).
 - Pruebas automáticas de los endpoints.
 - Versión .NET con SQL Server.
