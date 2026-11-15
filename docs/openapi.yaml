@@ -1,0 +1,668 @@
+openapi: 3.1.0
+
+info:
+  title: Booking App API
+  version: 0.1.0
+  description: |
+    API REST para reservar canchas. Este archivo es el **contrato** que deben cumplir
+    los dos backends del proyecto (Node.js y .NET).
+
+    ## Convenciones
+
+    - **JSON en camelCase** (`userId`, `startsAt`), aunque en la base de datos las columnas
+      estén en snake_case (`user_id`, `starts_at`).
+    - **Fechas en ISO 8601 con zona horaria explícita**, por ejemplo `2026-11-20T18:00:00-05:00`.
+      Las respuestas siempre devuelven las fechas en UTC (`2026-11-20T23:00:00Z`).
+    - **Los cuerpos de entrada no admiten propiedades desconocidas**: enviar un campo que no
+      está en el esquema responde `400`.
+    - **Errores en formato Problem Details** ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)),
+      con `Content-Type: application/problem+json`. Los errores de validación agregan la
+      propiedad `errors`, con los mensajes agrupados por campo.
+
+    ## Códigos de estado
+
+    | Código | Cuándo |
+    |---|---|
+    | `200 OK` | Lectura o modificación correcta. |
+    | `201 Created` | Recurso creado. Incluye la cabecera `Location`. |
+    | `204 No Content` | Recurso eliminado. |
+    | `400 Bad Request` | El cuerpo o los parámetros no son válidos, o se incumple una regla de negocio. |
+    | `404 Not Found` | El recurso indicado en la URL no existe. |
+    | `409 Conflict` | La operación choca con el estado actual de los datos (email repetido, horario ocupado, transición de estado no permitida…). |
+
+servers:
+  - url: http://localhost:3000
+    description: Backend local
+
+tags:
+  - name: Users
+    description: Personas que hacen reservas.
+  - name: Courts
+    description: Canchas que se pueden reservar.
+  - name: Bookings
+    description: Reservas de una cancha por parte de un usuario.
+
+paths:
+  # ──────────────────────────────── Users ────────────────────────────────
+  /users:
+    get:
+      tags: [Users]
+      operationId: listUsers
+      summary: Listar usuarios
+      description: Devuelve todos los usuarios, ordenados por `id`.
+      responses:
+        '200':
+          description: Lista de usuarios.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/User'
+    post:
+      tags: [Users]
+      operationId: createUser
+      summary: Crear un usuario
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '201':
+          description: Usuario creado.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: Ya existe un usuario con ese email.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: Ya existe un usuario con el email pepe@example.com.
+
+  /users/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Users]
+      operationId: getUser
+      summary: Obtener un usuario
+      responses:
+        '200':
+          description: El usuario.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Users]
+      operationId: replaceUser
+      summary: Reemplazar un usuario
+      description: Reemplaza todos los campos editables del usuario. El cuerpo es el mismo que al crearlo.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UserInput'
+      responses:
+        '200':
+          description: Usuario actualizado.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/User'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: Otro usuario ya tiene ese email.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+    delete:
+      tags: [Users]
+      operationId: deleteUser
+      summary: Eliminar un usuario
+      description: |
+        Solo se puede eliminar un usuario que **no tenga reservas**, sin importar su estado:
+        las reservas canceladas también forman parte del historial.
+      responses:
+        '204':
+          description: Usuario eliminado.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: El usuario tiene reservas asociadas.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: El usuario 1 tiene reservas asociadas y no se puede eliminar.
+
+  # ──────────────────────────────── Courts ───────────────────────────────
+  /courts:
+    get:
+      tags: [Courts]
+      operationId: listCourts
+      summary: Listar canchas
+      description: Devuelve todas las canchas, ordenadas por `id`.
+      responses:
+        '200':
+          description: Lista de canchas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Court'
+    post:
+      tags: [Courts]
+      operationId: createCourt
+      summary: Crear una cancha
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourtInput'
+      responses:
+        '201':
+          description: Cancha creada.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Court'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+
+  /courts/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Courts]
+      operationId: getCourt
+      summary: Obtener una cancha
+      responses:
+        '200':
+          description: La cancha.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Court'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    put:
+      tags: [Courts]
+      operationId: replaceCourt
+      summary: Reemplazar una cancha
+      description: Reemplaza todos los campos editables de la cancha. El cuerpo es el mismo que al crearla.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/CourtInput'
+      responses:
+        '200':
+          description: Cancha actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Court'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    delete:
+      tags: [Courts]
+      operationId: deleteCourt
+      summary: Eliminar una cancha
+      description: Solo se puede eliminar una cancha que **no tenga reservas**, sin importar su estado.
+      responses:
+        '204':
+          description: Cancha eliminada.
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La cancha tiene reservas asociadas.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+
+  # ─────────────────────────────── Bookings ──────────────────────────────
+  /bookings:
+    get:
+      tags: [Bookings]
+      operationId: listBookings
+      summary: Listar reservas
+      description: |
+        Devuelve las reservas ordenadas por `startsAt`. Todos los filtros son opcionales
+        y se combinan entre sí (Y lógico).
+
+        Filtrar por un `userId` o `courtId` que no existe devuelve una lista vacía, no un `404`:
+        el recurso que se consulta es la colección de reservas, y esa sí existe.
+      parameters:
+        - name: userId
+          in: query
+          description: Solo las reservas de este usuario.
+          schema:
+            type: integer
+            minimum: 1
+        - name: courtId
+          in: query
+          description: Solo las reservas de esta cancha.
+          schema:
+            type: integer
+            minimum: 1
+        - name: status
+          in: query
+          description: Solo las reservas con este estado.
+          schema:
+            $ref: '#/components/schemas/BookingStatus'
+        - name: from
+          in: query
+          description: |
+            Solo las reservas que **terminan después** de este instante.
+            Junto con `to`, devuelve las reservas cuyo horario se cruza con el intervalo `[from, to)`.
+          schema:
+            type: string
+            format: date-time
+          example: '2026-11-20T00:00:00-05:00'
+        - name: to
+          in: query
+          description: Solo las reservas que **empiezan antes** de este instante. Debe ser posterior a `from`.
+          schema:
+            type: string
+            format: date-time
+          example: '2026-11-21T00:00:00-05:00'
+      responses:
+        '200':
+          description: Lista de reservas.
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+    post:
+      tags: [Bookings]
+      operationId: createBooking
+      summary: Crear una reserva
+      description: |
+        Crea una reserva con estado `confirmed`. El estado no se envía: toda reserva nueva nace confirmada.
+
+        **Reglas de negocio** (si se incumplen → `400`):
+        - `userId` y `courtId` deben corresponder a un usuario y una cancha existentes.
+        - `startsAt` y `endsAt` deben ser horas en punto: minutos, segundos y milisegundos en 0.
+        - `endsAt` debe ser posterior a `startsAt`, y la reserva debe durar **entre 1 y 3 horas**.
+        - `startsAt` no puede estar en el pasado.
+
+        **Disponibilidad** (si se incumple → `409`):
+        - La cancha no puede tener otra reserva confirmada que se cruce con ese horario.
+          Una reserva puede empezar justo cuando termina otra (16:00–18:00 después de 14:00–16:00).
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingInput'
+      responses:
+        '201':
+          description: Reserva creada.
+          headers:
+            Location:
+              $ref: '#/components/headers/Location'
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '409':
+          description: La cancha ya tiene una reserva confirmada que se cruza con ese horario.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              example:
+                type: about:blank
+                title: Conflict
+                status: 409
+                detail: La cancha 2 ya tiene una reserva confirmada que se cruza con ese horario.
+
+  /bookings/{id}:
+    parameters:
+      - $ref: '#/components/parameters/Id'
+    get:
+      tags: [Bookings]
+      operationId: getBooking
+      summary: Obtener una reserva
+      responses:
+        '200':
+          description: La reserva.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+    patch:
+      tags: [Bookings]
+      operationId: updateBookingStatus
+      summary: Cambiar el estado de una reserva
+      description: |
+        Modifica parcialmente la reserva. Por ahora, **solo se puede cambiar `status`**:
+        el horario, el usuario y la cancha no se editan. Para cambiar de horario, se cancela
+        la reserva y se crea una nueva.
+
+        **Transiciones permitidas** (cualquier otra → `409`):
+
+        | Desde | Hacia | Condición |
+        |---|---|---|
+        | `confirmed` | `cancelled` | La reserva todavía no ha empezado. |
+
+        Enviar el mismo estado que ya tiene la reserva tampoco es una transición válida y responde `409`.
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BookingStatusUpdate'
+      responses:
+        '200':
+          description: Reserva actualizada.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/Booking'
+        '400':
+          $ref: '#/components/responses/ValidationError'
+        '404':
+          $ref: '#/components/responses/NotFound'
+        '409':
+          description: La transición de estado no está permitida.
+          content:
+            application/problem+json:
+              schema:
+                $ref: '#/components/schemas/ProblemDetails'
+              examples:
+                alreadyCancelled:
+                  summary: La reserva ya está cancelada
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    detail: La reserva 1 está cancelada y no puede cambiar de estado.
+                alreadyStarted:
+                  summary: La reserva ya empezó
+                  value:
+                    type: about:blank
+                    title: Conflict
+                    status: 409
+                    detail: La reserva 1 ya empezó y no se puede cancelar.
+
+components:
+  parameters:
+    Id:
+      name: id
+      in: path
+      required: true
+      description: Identificador del recurso.
+      schema:
+        type: integer
+        minimum: 1
+      example: 1
+
+  headers:
+    Location:
+      description: URL del recurso creado.
+      schema:
+        type: string
+      example: /bookings/1
+
+  responses:
+    ValidationError:
+      description: La petición no es válida. `errors` indica qué falló en cada campo.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ValidationProblemDetails'
+          example:
+            type: about:blank
+            title: Bad Request
+            status: 400
+            detail: La petición tiene errores de validación.
+            errors:
+              endsAt:
+                - La reserva debe durar entre 1 y 3 horas.
+              startsAt:
+                - Debe ser una hora en punto.
+    NotFound:
+      description: El recurso no existe.
+      content:
+        application/problem+json:
+          schema:
+            $ref: '#/components/schemas/ProblemDetails'
+          example:
+            type: about:blank
+            title: Not Found
+            status: 404
+            detail: No existe la reserva 99.
+
+  schemas:
+    # ─────────── Users ───────────
+    User:
+      type: object
+      required: [id, name, email, createdAt]
+      properties:
+        id:
+          type: integer
+          example: 1
+        name:
+          type: string
+          example: Pepe
+        email:
+          type: string
+          format: email
+          example: pepe@example.com
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-14T23:00:00Z'
+
+    UserInput:
+      type: object
+      additionalProperties: false
+      required: [name, email]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 75
+          description: No puede estar vacío ni contener solo espacios.
+          example: Pepe
+        email:
+          type: string
+          format: email
+          maxLength: 100
+          description: Único entre todos los usuarios.
+          example: pepe@example.com
+
+    # ─────────── Courts ───────────
+    Court:
+      type: object
+      required: [id, name]
+      properties:
+        id:
+          type: integer
+          example: 2
+        name:
+          type: string
+          example: Cancha Colombia
+
+    CourtInput:
+      type: object
+      additionalProperties: false
+      required: [name]
+      properties:
+        name:
+          type: string
+          minLength: 1
+          maxLength: 100
+          description: No puede estar vacío ni contener solo espacios.
+          example: Cancha Colombia
+
+    # ─────────── Bookings ───────────
+    BookingStatus:
+      type: string
+      enum: [confirmed, cancelled]
+      description: |
+        - `confirmed`: la reserva ocupa la cancha.
+        - `cancelled`: la reserva se conserva en el historial, pero ya no ocupa la cancha.
+
+    Booking:
+      type: object
+      required: [id, userId, courtId, startsAt, endsAt, status, observation, createdAt]
+      properties:
+        id:
+          type: integer
+          example: 1
+        userId:
+          type: integer
+          example: 1
+        courtId:
+          type: integer
+          example: 2
+        startsAt:
+          type: string
+          format: date-time
+          example: '2026-11-20T23:00:00Z'
+        endsAt:
+          type: string
+          format: date-time
+          example: '2026-11-21T01:00:00Z'
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+        observation:
+          type: [string, 'null']
+          example: Traer balón
+        createdAt:
+          type: string
+          format: date-time
+          example: '2026-11-14T23:00:00Z'
+
+    BookingInput:
+      type: object
+      additionalProperties: false
+      required: [userId, courtId, startsAt, endsAt]
+      properties:
+        userId:
+          type: integer
+          minimum: 1
+          example: 1
+        courtId:
+          type: integer
+          minimum: 1
+          example: 2
+        startsAt:
+          type: string
+          format: date-time
+          description: Hora en punto, con zona horaria explícita.
+          example: '2026-11-20T18:00:00-05:00'
+        endsAt:
+          type: string
+          format: date-time
+          description: Hora en punto, entre 1 y 3 horas después de `startsAt`.
+          example: '2026-11-20T20:00:00-05:00'
+        observation:
+          type: [string, 'null']
+          maxLength: 255
+          description: Nota opcional sobre la reserva.
+          example: Traer balón
+
+    BookingStatusUpdate:
+      type: object
+      additionalProperties: false
+      required: [status]
+      properties:
+        status:
+          $ref: '#/components/schemas/BookingStatus'
+      example:
+        status: cancelled
+
+    # ─────────── Errores ───────────
+    ProblemDetails:
+      type: object
+      description: Formato de error estándar (RFC 9457).
+      required: [type, title, status]
+      properties:
+        type:
+          type: string
+          format: uri-reference
+          description: Identificador del tipo de error. `about:blank` cuando basta con el código HTTP.
+          example: about:blank
+        title:
+          type: string
+          description: Resumen corto del tipo de error.
+          example: Conflict
+        status:
+          type: integer
+          description: El mismo código de estado HTTP de la respuesta.
+          example: 409
+        detail:
+          type: string
+          description: Explicación específica de este caso.
+          example: La cancha 2 ya tiene una reserva confirmada que se cruza con ese horario.
+
+    ValidationProblemDetails:
+      description: Problem Details con los errores de validación agrupados por campo.
+      allOf:
+        - $ref: '#/components/schemas/ProblemDetails'
+        - type: object
+          required: [errors]
+          properties:
+            errors:
+              type: object
+              description: Cada clave es un campo (o parámetro) y su valor, la lista de mensajes de error.
+              additionalProperties:
+                type: array
+                items:
+                  type: string

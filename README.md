@@ -14,12 +14,12 @@ El acceso a datos es con **SQL explícito, sin ORM**, y todo se ejecuta localmen
 | Parte | Estado |
 |---|---|
 | Base de datos PostgreSQL (esquema, migraciones y datos de ejemplo) | ✅ Lista |
-| Contrato de la API (`docs/openapi.yaml`) | ⏳ Pendiente |
+| Contrato de la API (`docs/openapi.yaml`) | ✅ Listo |
 | Backend Node.js (`backend-node/`) | ⏳ Pendiente |
 | Base de datos SQL Server | ⏳ Pendiente |
 | Backend .NET (`backend-dotnet/`) | ⏳ Pendiente |
 
-Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y datos de ejemplo cargados automáticamente.
+Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y datos de ejemplo cargados automáticamente, y tiene definido el contrato que implementarán los backends.
 
 ## Tecnologías
 
@@ -31,6 +31,8 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 
 ```
 .
+├── docs/
+│   └── openapi.yaml               # Contrato de la API (OpenAPI 3.1)
 ├── db/
 │   └── postgres/
 │       ├── migrations/            # Cambios de esquema versionados
@@ -132,9 +134,27 @@ Reglas para trabajar con ellas:
 - Respeta el formato del nombre: `V`, número, **dos** guiones bajos y descripción.
 - Los datos de ejemplo son solo para desarrollo: borran el contenido de las tablas cada vez que se recargan.
 
+## Contrato de la API
+
+El archivo [`docs/openapi.yaml`](docs/openapi.yaml) describe la API en formato **OpenAPI 3.1** y es la **fuente de verdad**: se escribe a mano antes que el código y los dos backends deben cumplirlo. Cada backend lo servirá con **Swagger UI**, para leer la documentación y probar los endpoints desde el navegador.
+
+| Recurso | Endpoints |
+|---|---|
+| Usuarios | `GET /users`, `POST /users`, `GET /users/{id}`, `PUT /users/{id}`, `DELETE /users/{id}` |
+| Canchas | `GET /courts`, `POST /courts`, `GET /courts/{id}`, `PUT /courts/{id}`, `DELETE /courts/{id}` |
+| Reservas | `GET /bookings`, `POST /bookings`, `GET /bookings/{id}`, `PATCH /bookings/{id}` |
+
+Decisiones principales:
+
+- **JSON en camelCase** (`startsAt`); la base de datos usa snake_case (`starts_at`).
+- **Errores con Problem Details** ([RFC 9457](https://www.rfc-editor.org/rfc/rfc9457)): todos tienen el mismo formato JSON, y los de validación incluyen los mensajes por campo en `errors`.
+- **`PUT` reemplaza** el recurso completo (usuarios y canchas); **`PATCH` modifica parcialmente** (reservas).
+- **Las reservas no se borran ni se editan**: con `PATCH` solo se cambia `status`, y el servidor valida la transición. Por ahora solo se permite `confirmed` → `cancelled`, y solo antes de que empiece la reserva.
+- **Reglas de las reservas**: duran entre 1 y 3 horas, empiezan y terminan en hora en punto, no pueden estar en el pasado y no pueden cruzarse con otra reserva confirmada de la misma cancha (`409`).
+- **No se puede eliminar** un usuario o una cancha con reservas (`409`).
+
 ## Próximos pasos
 
-- Contrato de la API en `docs/openapi.yaml`, visible con Swagger UI.
 - Backend Node.js con Express, TypeScript y el driver `pg`.
 - Pruebas automáticas de los endpoints.
 - Versión .NET con SQL Server.
