@@ -36,7 +36,8 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 │       ├── migrations/            # Cambios de esquema versionados
 │       │   ├── V1__create_users.sql
 │       │   ├── V2__create_courts.sql
-│       │   └── V3__create_bookings.sql
+│       │   ├── V3__create_bookings.sql
+│       │   └── V4__add_bookings_no_overlap.sql
 │       └── seed/                  # Datos de ejemplo para desarrollo
 │           └── R__seed_data.sql
 ├── docker-compose.yml
@@ -99,6 +100,20 @@ Reglas que ya impone la base de datos:
 - Una reserva siempre pertenece a un usuario y a una cancha existentes.
 - `ends_at` debe ser posterior a `starts_at`.
 - `status` solo admite `confirmed` o `cancelled`.
+- **Una cancha no puede tener dos reservas confirmadas que se solapen en el tiempo.** Se implementa con una restricción de exclusión (`ex_bookings_no_overlap`):
+
+  ```sql
+  EXCLUDE USING gist (
+      court_id                      WITH =,   -- misma cancha
+      tstzrange(starts_at, ends_at) WITH &&   -- rangos que se cruzan
+  )
+  WHERE (status = 'confirmed');
+  ```
+
+  - El rango `[starts_at, ends_at)` incluye el inicio y excluye el fin, así que una reserva puede empezar justo cuando termina otra (por ejemplo, 14:00–16:00 y 16:00–18:00).
+  - Las reservas canceladas no bloquean la cancha.
+  - Requiere la extensión `btree_gist`, que permite combinar la igualdad de `court_id` y el solapamiento de rangos en un mismo índice GiST.
+  - Al hacerlo en la base de datos, la regla se cumple incluso con peticiones simultáneas. Si se viola, PostgreSQL devuelve el error `23P01` (*exclusion_violation*).
 
 Las fechas se guardan como `timestamptz` (instantes en UTC) y se escriben en formato ISO 8601 con zona horaria, por ejemplo `2026-11-14T14:00:00-05:00`.
 
@@ -119,7 +134,6 @@ Reglas para trabajar con ellas:
 
 ## Próximos pasos
 
-- Regla para impedir reservas solapadas de una misma cancha (restricción `EXCLUDE` de PostgreSQL).
 - Contrato de la API en `docs/openapi.yaml`, visible con Swagger UI.
 - Backend Node.js con Express, TypeScript y el driver `pg`.
 - Pruebas automáticas de los endpoints.
