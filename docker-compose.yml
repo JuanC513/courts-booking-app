@@ -1,0 +1,35 @@
+services:
+  db:
+    image: postgres:17
+    profiles: [node]
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_PORT}:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 5s
+      retries: 10
+
+  flyway-postgres:
+    image: flyway/flyway:11
+    profiles: [node]
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db:5432/${POSTGRES_DB}
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      FLYWAY_LOCATIONS: filesystem:/flyway/migrations,filesystem:/flyway/seed
+    volumes:
+      - ./db/postgres/migrations:/flyway/migrations:ro
+      - ./db/postgres/seed:/flyway/seed:ro
+    command: migrate
+
+volumes:
+  postgres-data:
