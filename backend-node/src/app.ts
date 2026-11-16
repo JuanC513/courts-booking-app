@@ -3,6 +3,7 @@ import { pool } from "./db/pool.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { notFoundHandler } from "./middlewares/not-found.js";
 import { usersRouter } from "./modules/users/users.routes.js";
+import { courtsRouter } from "./modules/courts/courts.routes.js";
 
 export const app = express();
 
@@ -20,6 +21,7 @@ app.get("/health", async (_req, res) => {
 });
 
 app.use("/users", usersRouter);
+app.use("/courts", courtsRouter);
 
 // Siempre al final, y en este orden
 app.use(notFoundHandler);
