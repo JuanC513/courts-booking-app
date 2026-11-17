@@ -1,4 +1,6 @@
 import { ValidationError } from "../errors/http-errors.js";
+import { DATE_TIME_MESSAGE, parseDateTime } from "./date-time.js";
+import { ID_MESSAGE, isValidId } from "./parse-id.js";
 
 export type FieldErrors = Record<string, string[]>;
 
@@ -56,4 +58,64 @@ export function readRequiredString(
     return undefined;
   }
   return trimmed;
+}
+
+// Lee un texto opcional. Si no viene, es null o queda vacío al quitar los espacios, devuelve null.
+// Si es inválido agrega el error y también devuelve null: el error ya impide continuar.
+export function readOptionalString(
+  data: Record<string, unknown>,
+  field: string,
+  maxLength: number,
+  errors: FieldErrors,
+): string | null {
+  const value = data[field];
+  if (value === undefined || value === null) {
+    return null;
+  }
+  if (typeof value !== "string") {
+    addError(errors, field, "Debe ser un texto.");
+    return null;
+  }
+  const trimmed = value.trim();
+  if (trimmed.length > maxLength) {
+    addError(errors, field, `No puede superar los ${maxLength} caracteres.`);
+    return null;
+  }
+  return trimmed.length > 0 ? trimmed : null;
+}
+
+// Lee un id obligatorio. En JSON debe llegar como número (1), no como texto ("1")
+export function readRequiredId(
+  data: Record<string, unknown>,
+  field: string,
+  errors: FieldErrors,
+): number | undefined {
+  const value = data[field];
+  if (value === undefined) {
+    addError(errors, field, "Es obligatorio.");
+    return undefined;
+  }
+  if (typeof value !== "number" || !isValidId(value)) {
+    addError(errors, field, ID_MESSAGE);
+    return undefined;
+  }
+  return value;
+}
+
+// Lee una fecha y hora obligatoria. En JSON no existe el tipo fecha: llega como texto ISO 8601
+export function readRequiredDateTime(
+  data: Record<string, unknown>,
+  field: string,
+  errors: FieldErrors,
+): Date | undefined {
+  const value = data[field];
+  if (value === undefined) {
+    addError(errors, field, "Es obligatorio.");
+    return undefined;
+  }
+  const date = typeof value === "string" ? parseDateTime(value) : undefined;
+  if (date === undefined) {
+    addError(errors, field, DATE_TIME_MESSAGE);
+  }
+  return date;
 }
