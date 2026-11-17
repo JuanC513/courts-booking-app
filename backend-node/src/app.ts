@@ -4,6 +4,7 @@ import { errorHandler } from "./middlewares/error-handler.js";
 import { notFoundHandler } from "./middlewares/not-found.js";
 import { usersRouter } from "./modules/users/users.routes.js";
 import { courtsRouter } from "./modules/courts/courts.routes.js";
+import { bookingsRouter } from "./modules/bookings/bookings.routes.js";
 
 export const app = express();
 
@@ -22,6 +23,7 @@ app.get("/health", async (_req, res) => {
 
 app.use("/users", usersRouter);
 app.use("/courts", courtsRouter);
+app.use("/bookings", bookingsRouter);
 
 // Siempre al final, y en este orden
 app.use(notFoundHandler);
