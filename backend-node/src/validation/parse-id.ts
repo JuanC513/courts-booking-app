@@ -5,13 +5,18 @@ const MAX_INT = 2_147_483_647;
 
 export const ID_MESSAGE = "Debe ser un número entero positivo.";
 
+// La regla de un id, para cuando ya es un número (por ejemplo, en un cuerpo JSON)
+export function isValidId(value: number): boolean {
+  return Number.isInteger(value) && value <= MAX_INT;
+}
+
 // Convierte un texto en id. Devuelve undefined si no es un entero positivo que quepa en `int`
 export function toId(value: string): number | undefined {
   if (!/^[1-9]\d*$/.test(value)) {
     return undefined;
   }
   const id = Number(value);
-  return id <= MAX_INT ? id : undefined;
+  return isValidId(id) ? id : undefined;
 }
 
 // Para el :id de la URL: si no es válido, corta con un 400
