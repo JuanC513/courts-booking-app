@@ -5,3 +5,5 @@ export const bookingsRouter = Router();
 
 bookingsRouter.get("/", bookingController.list);
 bookingsRouter.get("/:id", bookingController.getById);
+bookingsRouter.post("/", bookingController.create);
+bookingsRouter.patch("/:id", bookingController.updateStatus);

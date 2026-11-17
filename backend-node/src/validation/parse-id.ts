@@ -7,7 +7,7 @@ export const ID_MESSAGE = "Debe ser un número entero positivo.";
 
 // La regla de un id, para cuando ya es un número (por ejemplo, en un cuerpo JSON)
 export function isValidId(value: number): boolean {
-  return Number.isInteger(value) && value <= MAX_INT;
+  return Number.isInteger(value) && value >= 1 && value <= MAX_INT;
 }
 
 // Convierte un texto en id. Devuelve undefined si no es un entero positivo que quepa en `int`

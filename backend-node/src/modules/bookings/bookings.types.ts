@@ -22,8 +22,8 @@ export interface BookingFilters {
   to?: Date;
 }
 
-// // Datos que envía el cliente para crear una reserva
-// export type BookingInput = Pick<
-//   Booking,
-//   "userId" | "courtId" | "startsAt" | "endsAt" | "observation"
-// >;
+// Datos que envía el cliente para crear una reserva
+export type BookingInput = Pick<
+  Booking,
+  "userId" | "courtId" | "startsAt" | "endsAt" | "observation"
+>;
