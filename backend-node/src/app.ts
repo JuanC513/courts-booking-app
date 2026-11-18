@@ -1,5 +1,7 @@
 import express from "express";
+import swaggerUi from "swagger-ui-express";
 import { pool } from "./db/pool.js";
+import { openApiSpec } from "./openapi.js";
 import { errorHandler } from "./middlewares/error-handler.js";
 import { notFoundHandler } from "./middlewares/not-found.js";
 import { usersRouter } from "./modules/users/users.routes.js";
@@ -24,6 +26,12 @@ app.get("/health", async (_req, res) => {
 app.use("/users", usersRouter);
 app.use("/courts", courtsRouter);
 app.use("/bookings", bookingsRouter);
+
+// Documentación interactiva del contrato
+app.get("/openapi.json", (_req, res) => {
+  res.json(openApiSpec);
+});
+app.use("/docs", swaggerUi.serve, swaggerUi.setup(openApiSpec));
 
 // Siempre al final, y en este orden
 app.use(notFoundHandler);
