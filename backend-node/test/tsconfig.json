@@ -1,0 +1,9 @@
+{
+  // Configuración solo para revisar tipos de las pruebas: no genera archivos
+  "extends": "../tsconfig.json",
+  "compilerOptions": {
+    "rootDir": "..",
+    "noEmit": true
+  },
+  "include": ["../src", "."]
+}

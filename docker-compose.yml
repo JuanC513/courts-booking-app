@@ -56,5 +56,38 @@ services:
       interval: 10s
       retries: 3
 
+  db-test:
+    image: postgres:17
+    profiles: [test]
+    environment:
+      POSTGRES_DB: booking_app_test
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${POSTGRES_TEST_PORT}:5432"
+    # Los datos viven en memoria: al bajar el contenedor desaparecen y la próxima vez empieza limpia
+    tmpfs:
+      - /var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}"]
+      interval: 2s
+      retries: 15
+
+  flyway-postgres-test:
+    image: flyway/flyway:11
+    profiles: [test]
+    depends_on:
+      db-test:
+        condition: service_healthy
+    environment:
+      FLYWAY_URL: jdbc:postgresql://db-test:5432/booking_app_test
+      FLYWAY_USER: ${POSTGRES_USER}
+      FLYWAY_PASSWORD: ${POSTGRES_PASSWORD}
+      # Solo las migraciones: cada prueba crea sus propios datos
+      FLYWAY_LOCATIONS: filesystem:/flyway/migrations
+    volumes:
+      - ./db/postgres/migrations:/flyway/migrations:ro
+    command: migrate
+
 volumes:
   postgres-data:
