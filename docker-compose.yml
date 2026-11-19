@@ -31,5 +31,30 @@ services:
       - ./db/postgres/seed:/flyway/seed:ro
     command: migrate
 
+  api-node:
+    build:
+      context: .
+      dockerfile: backend-node/Dockerfile
+    profiles: [node]
+    init: true
+    depends_on:
+      db:
+        condition: service_healthy
+      flyway-postgres:
+        condition: service_completed_successfully
+    environment:
+      PORT: 3000
+      DB_HOST: db
+      DB_PORT: 5432
+      DB_NAME: ${POSTGRES_DB}
+      DB_USER: ${POSTGRES_USER}
+      DB_PASSWORD: ${POSTGRES_PASSWORD}
+    ports:
+      - "${API_PORT}:3000"
+    healthcheck:
+      test: ["CMD", "wget", "-qO-", "http://localhost:3000/health"]
+      interval: 10s
+      retries: 3
+
 volumes:
   postgres-data:

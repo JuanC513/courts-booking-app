@@ -1,0 +1,5 @@
+# Lo que nunca debe entrar al contexto de build de Docker
+.git
+**/.env
+**/node_modules
+**/dist

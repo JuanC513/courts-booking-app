@@ -23,7 +23,7 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 
 ## Tecnologías
 
-- **Node.js 22 + TypeScript**: lenguaje y entorno del backend Node.
+- **Node.js 26 + TypeScript**: lenguaje y entorno del backend Node.
 - **Express 5**: framework web del backend Node.
 - **pg**: driver de PostgreSQL para Node (consultas SQL parametrizadas, sin ORM).
 - **PostgreSQL 17**: base de datos del backend Node.
@@ -63,7 +63,7 @@ Por ahora, el proyecto levanta una base de datos PostgreSQL con su esquema y dat
 ## Requisitos
 
 - [Docker Desktop](https://www.docker.com/products/docker-desktop/) (incluye Docker Compose).
-- [Node.js 22](https://nodejs.org/) o superior, para ejecutar el backend Node en local.
+- [Node.js 26](https://nodejs.org/) o superior, para ejecutar el backend Node en local.
 
 ## Cómo ejecutarlo
 
