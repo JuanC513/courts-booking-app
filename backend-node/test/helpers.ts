@@ -72,3 +72,11 @@ export async function request(
   };
 }
 
+// Fecha ISO en UTC a `days` días de hoy, a la hora en punto `hour` (también en UTC).
+// Las pruebas no usan fechas fijas: una fecha "futura" escrita a mano estaría en el pasado dentro de unos días.
+export function dayAt(days: number, hour: number): string {
+  const date = new Date();
+  date.setUTCDate(date.getUTCDate() + days);
+  date.setUTCHours(hour, 0, 0, 0);
+  return date.toISOString();
+}
